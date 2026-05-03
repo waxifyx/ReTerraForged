@@ -13,7 +13,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.MouseHandler;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -42,6 +41,7 @@ import raccoonman.reterraforged.config.PerformanceConfig;
 import raccoonman.reterraforged.data.worldgen.preset.settings.Preset;
 import raccoonman.reterraforged.data.worldgen.preset.settings.SpawnType;
 import raccoonman.reterraforged.data.worldgen.preset.settings.WorldSettings;
+import raccoonman.reterraforged.mixin.ScreenInvoker;
 import raccoonman.reterraforged.registries.RTFRegistries;
 import raccoonman.reterraforged.world.worldgen.GeneratorContext;
 import raccoonman.reterraforged.world.worldgen.cell.Cell;
@@ -94,12 +94,24 @@ public abstract class PresetEditorPage extends BisectedPage<PresetConfigScreen, 
 		this.seed = new SeedButton(this.screen.getSettings().options().seed());
 
 		this.preview = new Preview();
+		this.layoutPreview();
 		this.preview.regenerate();
 
 		this.right.addWidget(this.zoom);
 		this.right.addWidget(this.renderMode);
 		this.right.addWidget(this.seed);
-		this.right.addWidget(this.preview);
+		((ScreenInvoker) this.screen).invokeAddRenderableWidget(this.preview);
+	}
+
+	private void layoutPreview() {
+		int rowWidth = this.right.getRowWidth();
+		int previewWidth = Math.min(396, rowWidth);
+		int previewX = this.right.getRowLeft() + (rowWidth - previewWidth) / 2;
+		int previewY = this.right.getRowTop(3);
+		this.preview.setX(previewX);
+		this.preview.setY(previewY);
+		this.preview.setWidth(previewWidth);
+		this.preview.setHeight(previewWidth);
 	}
 	
 	@Override
@@ -277,19 +289,73 @@ public abstract class PresetEditorPage extends BisectedPage<PresetConfigScreen, 
 	    private Component[] legendLabels = { Component.translatable(RTFTranslationKeys.GUI_LABEL_PREVIEW_AREA), Component.translatable(RTFTranslationKeys.GUI_LABEL_PREVIEW_TERRAIN), Component.translatable(RTFTranslationKeys.GUI_LABEL_PREVIEW_BIOME) };
 	    
 	    private int offsetX, offsetZ;
+	    private boolean dragging;
+	    private boolean pannedDuringDrag;
+	    private int dragButton = -1;
+	    private double dragMouseX, dragMouseY;
+	    private double dragRemainderX, dragRemainderY;
 
 	    public Preview() {
-	        super(-1, -1, -1, -1, CommonComponents.EMPTY, (b) -> {
-		    	System.out.println("clicked");
-	        	Minecraft mc = Minecraft.getInstance();
-	        	MouseHandler mouse = mc.mouseHandler;
-	        	if(b instanceof Preview self) {
-			        if (self.updateLegend((int) mouse.xpos(), (int) mouse.ypos()) && !self.hoveredCoords.isEmpty()) {
-			            self.playDownSound(Minecraft.getInstance().getSoundManager());
-			            PresetEditorPage.this.screen.minecraft.keyboardHandler.setClipboard(self.hoveredCoords);
-			        }
-	        	}
-	        }, DEFAULT_NARRATION);
+	        super(-1, -1, -1, -1, CommonComponents.EMPTY, (b) -> {}, DEFAULT_NARRATION);
+	    }
+
+	    @Override
+	    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+	    	if (!this.active || !this.visible || !this.isMouseOver(mouseX, mouseY)) {
+	    		return false;
+	    	}
+	    	if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT || button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
+	    		this.dragging = true;
+	    		this.pannedDuringDrag = false;
+	    		this.dragButton = button;
+	    		this.dragMouseX = mouseX;
+	    		this.dragMouseY = mouseY;
+	    		this.dragRemainderX = 0.0D;
+	    		this.dragRemainderY = 0.0D;
+	    		return true;
+	    	}
+	    	return false;
+	    }
+
+	    @Override
+	    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+	    	if (!this.dragging || button != this.dragButton) {
+	    		return false;
+	    	}
+	    	this.dragRemainderX += mouseX - this.dragMouseX;
+	    	this.dragRemainderY += mouseY - this.dragMouseY;
+	    	this.dragMouseX = mouseX;
+	    	this.dragMouseY = mouseY;
+	    	int pixelsX = (int) this.dragRemainderX;
+	    	int pixelsY = (int) this.dragRemainderY;
+	    	if (pixelsX == 0 && pixelsY == 0) {
+	    		return true;
+	    	}
+	    	this.dragRemainderX -= pixelsX;
+	    	this.dragRemainderY -= pixelsY;
+	    	int zoom = this.getZoom();
+	    	this.offsetX -= pixelsX * zoom;
+	    	this.offsetZ -= pixelsY * zoom;
+	    	this.pannedDuringDrag = true;
+	    	this.regenerate();
+	    	return true;
+	    }
+
+	    @Override
+	    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+	    	if (!this.dragging || button != this.dragButton) {
+	    		return false;
+	    	}
+	    	boolean panned = this.pannedDuringDrag;
+	    	this.dragging = false;
+	    	this.pannedDuringDrag = false;
+	    	this.dragButton = -1;
+	    	this.dragRemainderX = 0.0D;
+	    	this.dragRemainderY = 0.0D;
+	    	if (!panned && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+	    		this.copyHoveredCoords(mouseX, mouseY);
+	    	}
+	    	return true;
 	    }
 
 	    public void regenerate() {
@@ -312,16 +378,12 @@ public abstract class PresetEditorPage extends BisectedPage<PresetConfigScreen, 
 				.orElseGet(PerformanceConfig::makeDefault);
 	        GeneratorContext generatorContext = GeneratorContext.makeUncached(preset, noises, (int) settings.options().seed(), FACTOR, 0, config.batchCount());
 	        
-	        this.centerX = 0;
-	        this.centerZ = 0;
-	        
+	        this.centerX = this.offsetX;
+	        this.centerZ = this.offsetZ;
 	        if(preset.world().properties.spawnType == SpawnType.CONTINENT_CENTER) {
-	        	long nearestContinentCenter = generatorContext.lookup.getHeightmap().continent().getNearestCenter(this.offsetX, this.offsetZ);
-	        	this.centerX = PosUtil.unpackLeft(nearestContinentCenter);
-	        	this.centerZ = PosUtil.unpackRight(nearestContinentCenter);
-	        } else {
-	        	this.centerX = 0;
-	        	this.centerZ = 0;
+	        	long spawnContinentCenter = generatorContext.lookup.getHeightmap().continent().getNearestCenter(0.0F, 0.0F);
+	        	this.centerX += PosUtil.unpackLeft(spawnContinentCenter);
+	        	this.centerZ += PosUtil.unpackRight(spawnContinentCenter);
 	        }
 
 	        this.tile = generatorContext.generator.generateZoomed(this.centerX, this.centerZ, this.getZoom(), false).join();
@@ -396,6 +458,13 @@ public abstract class PresetEditorPage extends BisectedPage<PresetConfigScreen, 
 	            }
 	        }
 	        return false;
+	    }
+
+	    private void copyHoveredCoords(double mouseX, double mouseY) {
+	    	if (this.updateLegend((int) mouseX, (int) mouseY) && !this.hoveredCoords.isEmpty()) {
+	    		this.playDownSound(Minecraft.getInstance().getSoundManager());
+	    		PresetEditorPage.this.screen.minecraft.keyboardHandler.setClipboard(this.hoveredCoords);
+	    	}
 	    }
 
 	    private float getLegendScale() {

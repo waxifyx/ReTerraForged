@@ -9,10 +9,9 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.events.GuiEventListener;
-import raccoonman.reterraforged.client.gui.screen.presetconfig.PresetEditorPage;
-
 public class WidgetList<T extends AbstractWidget> extends ContainerObjectSelectionList<WidgetList.Entry<T>> {
 	private boolean renderSelected;
+	private Entry<T> draggedEntry;
 	
     public WidgetList(Minecraft minecraft, int i, int j, int k, int l) {
         super(minecraft, i, j, k, l);
@@ -43,6 +42,7 @@ public class WidgetList<T extends AbstractWidget> extends ContainerObjectSelecti
 
 	public void clearFocusedWidget() {
 		Entry<T> focused = this.getFocused();
+		this.draggedEntry = null;
 		if (focused != null) {
 			focused.setFocused(null);
 			this.setFocused(null);
@@ -50,6 +50,10 @@ public class WidgetList<T extends AbstractWidget> extends ContainerObjectSelecti
 	}
 
 	public interface ClickOffClose {
+	}
+
+	public int getRowTop(int index) {
+		return super.getRowTop(index);
 	}
 
     @Override
@@ -75,15 +79,37 @@ public class WidgetList<T extends AbstractWidget> extends ContainerObjectSelecti
 			focusedEntry.setFocused(null);
 		}
 		if (super.mouseClicked(mouseX, mouseY, button)) {
+			this.draggedEntry = clickedEntry;
 			return true;
 		}
 		Entry<T> entry = clickedEntry;
 		if (entry != null && entry.getWidget().mouseClicked(mouseX, mouseY, button)) {
+			this.draggedEntry = entry;
 			this.setFocused(entry);
 			entry.setFocused(entry.getWidget());
 			return true;
 		}
+		this.draggedEntry = null;
 		return false;
+	}
+
+	@Override
+	public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+		Entry<T> entry = this.draggedEntry;
+		if (entry != null && entry.getWidget().mouseDragged(mouseX, mouseY, button, dragX, dragY)) {
+			return true;
+		}
+		return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+	}
+
+	@Override
+	public boolean mouseReleased(double mouseX, double mouseY, int button) {
+		Entry<T> entry = this.draggedEntry;
+		this.draggedEntry = null;
+		if (entry != null && entry.getWidget().mouseReleased(mouseX, mouseY, button)) {
+			return true;
+		}
+		return super.mouseReleased(mouseX, mouseY, button);
 	}
 
 	public static class Entry<T extends AbstractWidget> extends ContainerObjectSelectionList.Entry<Entry<T>> {
@@ -111,9 +137,6 @@ public class WidgetList<T extends AbstractWidget> extends ContainerObjectSelecti
             widget.visible = true;
             widget.setWidth(optionWidth);
             widget.setHeight(height - 1);
-            if(widget instanceof PresetEditorPage.Preview preview) {
-            	widget.setHeight(widget.getWidth());
-            }
             widget.render(guiGraphics, mouseX, mouseY, partialTicks);
         }
 

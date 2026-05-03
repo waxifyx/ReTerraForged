@@ -8,6 +8,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
 import raccoonman.reterraforged.client.gui.widget.Label;
 import raccoonman.reterraforged.client.gui.widget.WidgetList;
 
@@ -83,6 +84,22 @@ public abstract class LinkedPageScreen extends Screen {
 			}
 		}
 		return super.mouseClicked(mouseX, mouseY, button);
+	}
+
+	@Override
+	public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+		if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && this.getFocused() != null && this.getFocused().mouseDragged(mouseX, mouseY, button, dragX, dragY)) {
+			return true;
+		}
+		return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+	}
+
+	@Override
+	public boolean mouseReleased(double mouseX, double mouseY, int button) {
+		if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && this.getFocused() != null && this.getFocused().mouseReleased(mouseX, mouseY, button)) {
+			return true;
+		}
+		return super.mouseReleased(mouseX, mouseY, button);
 	}
 	
 	@Override
