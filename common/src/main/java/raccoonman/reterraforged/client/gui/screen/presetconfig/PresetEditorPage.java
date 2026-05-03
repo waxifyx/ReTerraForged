@@ -3,6 +3,8 @@ package raccoonman.reterraforged.client.gui.screen.presetconfig;
 import java.awt.Color;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 
 import com.google.common.collect.ImmutableList;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -17,6 +19,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationContext;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.core.HolderGetter;
@@ -25,12 +29,14 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import org.lwjgl.glfw.GLFW;
 import raccoonman.reterraforged.RTFCommon;
 import raccoonman.reterraforged.client.data.RTFTranslationKeys;
+import raccoonman.reterraforged.client.gui.Tooltips;
 import raccoonman.reterraforged.client.gui.screen.page.BisectedPage;
 import raccoonman.reterraforged.client.gui.screen.presetconfig.PresetListPage.PresetEntry;
 import raccoonman.reterraforged.client.gui.widget.Slider;
-import raccoonman.reterraforged.client.gui.widget.ValueButton;
+import raccoonman.reterraforged.client.gui.widget.WidgetList;
 import raccoonman.reterraforged.concurrent.cache.CacheManager;
 import raccoonman.reterraforged.config.PerformanceConfig;
 import raccoonman.reterraforged.data.worldgen.preset.settings.Preset;
@@ -48,7 +54,7 @@ import raccoonman.reterraforged.world.worldgen.util.PosUtil;
 public abstract class PresetEditorPage extends BisectedPage<PresetConfigScreen, AbstractWidget, AbstractWidget> {
 	private Slider zoom;
 	private CycleButton<RenderMode> renderMode;
-	private ValueButton<Integer> seed;
+	private SeedButton seed;
 	private Preview preview;
 	protected PresetEntry preset;
 	
@@ -85,10 +91,7 @@ public abstract class PresetEditorPage extends BisectedPage<PresetConfigScreen, 
 		this.renderMode = PresetWidgets.createCycle(ImmutableList.copyOf(RenderMode.values()), selectedRenderMode, Optional.empty(), (button, value) -> {
 			this.regenerate();
 		}, RenderMode::name);
-		this.seed = PresetWidgets.createRandomButton(RTFTranslationKeys.GUI_BUTTON_SEED, (int) this.screen.getSettings().options().seed(), (i) -> {
-			this.screen.setSeed(i);
-			this.regenerate();
-		});
+		this.seed = new SeedButton(this.screen.getSettings().options().seed());
 
 		this.preview = new Preview();
 		this.preview.regenerate();
@@ -119,6 +122,143 @@ public abstract class PresetEditorPage extends BisectedPage<PresetConfigScreen, 
 			this.screen.applyPreset(this.preset);
 		} catch (IOException e) {
 			e.printStackTrace();
+		}
+	}
+
+	private class SeedButton extends Button implements WidgetList.ClickOffClose {
+		private static final int WHITE = 14737632;
+		private static final int RED = 0xFFFF3F30;
+		private final EditBox input;
+		private long value;
+		private boolean editing;
+
+		private SeedButton(long initial) {
+			super(-1, -1, -1, -1, CommonComponents.EMPTY, (button) -> {}, Supplier::get);
+			this.input = PresetWidgets.createEditBox(PresetEditorPage.this.screen.font, this::onInputChanged, Component.empty());
+			this.setTooltip(Tooltips.create(Tooltips.translationKey(RTFTranslationKeys.GUI_BUTTON_SEED)));
+			this.syncValue(initial);
+		}
+
+		@Override
+		public boolean mouseClicked(double mouseX, double mouseY, int button) {
+			if (!this.active || !this.visible || !this.isMouseOver(mouseX, mouseY)) {
+				if (this.editing && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+					this.finishEditing(true);
+				}
+				return false;
+			}
+			if (this.editing) {
+				this.syncInputBounds();
+				return this.input.mouseClicked(mouseX, mouseY, button);
+			}
+			if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+				this.beginEditing();
+				return true;
+			}
+			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+				this.playDownSound(Minecraft.getInstance().getSoundManager());
+				this.applySeed(ThreadLocalRandom.current().nextLong());
+				return true;
+			}
+			return false;
+		}
+
+		@Override
+		public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+			if (!this.editing) {
+				return super.keyPressed(keyCode, scanCode, modifiers);
+			}
+			if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+				this.finishEditing(true);
+				return true;
+			}
+			if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+				this.finishEditing(false);
+				return true;
+			}
+			return this.input.keyPressed(keyCode, scanCode, modifiers);
+		}
+
+		@Override
+		public boolean charTyped(char codePoint, int modifiers) {
+			return this.editing && this.input.charTyped(codePoint, modifiers);
+		}
+
+		@Override
+		public void setFocused(boolean focused) {
+			boolean wasFocused = this.isFocused();
+			super.setFocused(focused);
+			if (wasFocused && !focused && this.editing) {
+				this.finishEditing(true);
+			}
+		}
+
+		@Override
+		public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+			if (!this.editing) {
+				super.renderWidget(guiGraphics, mouseX, mouseY, partialTicks);
+				return;
+			}
+			this.syncInputBounds();
+			this.input.render(guiGraphics, mouseX, mouseY, partialTicks);
+		}
+
+		@Override
+		public void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {
+			this.defaultButtonNarrationText(narrationElementOutput);
+		}
+
+		private void beginEditing() {
+			this.editing = true;
+			this.input.setValue(Long.toString(this.value));
+			this.onInputChanged(this.input.getValue());
+			this.syncInputBounds();
+			this.setFocused(true);
+			this.input.setFocused(true);
+		}
+
+		private void finishEditing(boolean apply) {
+			if (apply) {
+				this.parseSeed(this.input.getValue()).ifPresent(this::applySeed);
+			}
+			this.editing = false;
+			this.input.setFocused(false);
+			super.setFocused(false);
+		}
+
+		private void applySeed(long value) {
+			this.syncValue(value);
+			PresetEditorPage.this.screen.setSeed(value);
+			PresetEditorPage.this.regenerate();
+		}
+
+		private void syncValue(long value) {
+			this.value = value;
+			this.setMessage(CommonComponents.optionNameValue(Component.translatable(RTFTranslationKeys.GUI_BUTTON_SEED), Component.literal(Long.toString(value))));
+			this.input.setValue(Long.toString(value));
+			this.input.setTextColor(WHITE);
+		}
+
+		private void syncInputBounds() {
+			this.input.setX(this.getX());
+			this.input.setY(this.getY());
+			this.input.setWidth(this.getWidth());
+			this.input.setHeight(this.getHeight());
+		}
+
+		private void onInputChanged(String text) {
+			this.input.setTextColor(this.parseSeed(text).isPresent() ? WHITE : RED);
+		}
+
+		private Optional<Long> parseSeed(String text) {
+			if (text == null || text.isBlank()) {
+				return Optional.empty();
+			}
+			try {
+				return Optional.of(Long.parseLong(text.trim()));
+			} catch (NumberFormatException e) {
+				return Optional.empty();
+			}
 		}
 	}
 	

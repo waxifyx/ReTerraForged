@@ -36,6 +36,22 @@ public class WidgetList<T extends AbstractWidget> extends ContainerObjectSelecti
     	this.renderSelected = renderSelected;
     }
 
+	public T getFocusedWidget() {
+		Entry<T> focused = this.getFocused();
+		return focused == null ? null : focused.getWidget();
+	}
+
+	public void clearFocusedWidget() {
+		Entry<T> focused = this.getFocused();
+		if (focused != null) {
+			focused.setFocused(null);
+			this.setFocused(null);
+		}
+	}
+
+	public interface ClickOffClose {
+	}
+
     @Override
     protected boolean isSelectedItem(int i) {
         return this.renderSelected && Objects.equals(this.getSelected(), this.children().get(i));
@@ -46,12 +62,31 @@ public class WidgetList<T extends AbstractWidget> extends ContainerObjectSelecti
         return this.width - 20;
     }
 
-    @Override
-    protected int getScrollbarPosition() {
-        return this.getRowRight();
-    }
+	@Override
+	protected int getScrollbarPosition() {
+		return this.getRowRight();
+	}
 
-    public static class Entry<T extends AbstractWidget> extends ContainerObjectSelectionList.Entry<Entry<T>> {
+	@Override
+	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		Entry<T> clickedEntry = this.getEntryAtPosition(mouseX, mouseY);
+		Entry<T> focusedEntry = this.getFocused();
+		if (focusedEntry != null && focusedEntry != clickedEntry) {
+			focusedEntry.setFocused(null);
+		}
+		if (super.mouseClicked(mouseX, mouseY, button)) {
+			return true;
+		}
+		Entry<T> entry = clickedEntry;
+		if (entry != null && entry.getWidget().mouseClicked(mouseX, mouseY, button)) {
+			this.setFocused(entry);
+			entry.setFocused(entry.getWidget());
+			return true;
+		}
+		return false;
+	}
+
+	public static class Entry<T extends AbstractWidget> extends ContainerObjectSelectionList.Entry<Entry<T>> {
         private T widget;
 
         public Entry(T widget) {

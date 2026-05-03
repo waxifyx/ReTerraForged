@@ -3,11 +3,13 @@ package raccoonman.reterraforged.client.gui.screen.page;
 import java.util.Optional;
 
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import raccoonman.reterraforged.client.gui.widget.Label;
+import raccoonman.reterraforged.client.gui.widget.WidgetList;
 
 public abstract class LinkedPageScreen extends Screen {
 	public Button previousButton,
@@ -70,6 +72,17 @@ public abstract class LinkedPageScreen extends Screen {
 	public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
 		super.renderBackground(guiGraphics, mouseY, mouseY, partialTicks);
 		super.render(guiGraphics, mouseX, mouseY, partialTicks);
+	}
+
+	@Override
+	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		if (this.getFocused() instanceof WidgetList<?> list) {
+			AbstractWidget focusedWidget = list.getFocusedWidget();
+			if (focusedWidget instanceof WidgetList.ClickOffClose && !focusedWidget.isMouseOver(mouseX, mouseY)) {
+				list.clearFocusedWidget();
+			}
+		}
+		return super.mouseClicked(mouseX, mouseY, button);
 	}
 	
 	@Override
