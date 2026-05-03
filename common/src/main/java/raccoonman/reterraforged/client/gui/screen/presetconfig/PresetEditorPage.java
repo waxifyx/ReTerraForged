@@ -78,7 +78,11 @@ public abstract class PresetEditorPage extends BisectedPage<PresetConfigScreen, 
 			this.regenerate();
 			return value;
 		});
-		this.renderMode = PresetWidgets.createCycle(ImmutableList.copyOf(RenderMode.values()), this.renderMode != null ? this.renderMode.getValue() : RenderMode.BIOME_TYPE, Optional.empty(), (button, value) -> {
+		RenderMode selectedRenderMode = this.renderMode != null ? this.renderMode.getValue() : RenderMode.BIOME_TYPE;
+		if (selectedRenderMode == null) {
+			selectedRenderMode = RenderMode.BIOME_TYPE;
+		}
+		this.renderMode = PresetWidgets.createCycle(ImmutableList.copyOf(RenderMode.values()), selectedRenderMode, Optional.empty(), (button, value) -> {
 			this.regenerate();
 		}, RenderMode::name);
 		this.seed = PresetWidgets.createRandomButton(RTFTranslationKeys.GUI_BUTTON_SEED, (int) this.screen.getSettings().options().seed(), (i) -> {

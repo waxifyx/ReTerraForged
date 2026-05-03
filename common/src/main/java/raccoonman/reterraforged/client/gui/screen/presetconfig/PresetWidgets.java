@@ -63,13 +63,17 @@ final class PresetWidgets {
 	}
 	
 	public static <T> CycleButton<T> createCycle(Collection<T> values, T initial, Optional<String> text, CycleButton.OnValueChange<T> callback, Function<T, String> name) {
+		T safeInitial = initial;
+		if (safeInitial == null || !values.contains(safeInitial)) {
+			safeInitial = values.stream().filter((value) -> value != null).findFirst().orElse(null);
+		}
 		CycleButton.Builder<T> builder = CycleButton.<T>builder((e) -> {
-			return Component.literal(name.apply(e));
-		}).withInitialValue(initial).withValues(values);
+			return Component.literal(e == null ? "" : name.apply(e));
+		}).withInitialValue(safeInitial).withValues(values);
 		if(text.isEmpty()) {
 			builder = builder.displayOnlyValue();
 		}
-		CycleButton<T> button = builder.create(-1, -1, -1, -1, text.map(Component::translatable).orElse(null), callback);
+		CycleButton<T> button = builder.create(-1, -1, -1, -1, text.map(Component::translatable).orElse(Component.empty()), callback);
 		text.ifPresent((key) -> {
 			button.setTooltip(Tooltips.create(Tooltips.translationKey(key)));
 		});
