@@ -5,6 +5,7 @@ import java.util.Optional;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
@@ -76,6 +77,12 @@ public abstract class LinkedPageScreen extends Screen {
 	}
 
 	@Override
+	public void tick() {
+		super.tick();
+		this.currentPage.tick();
+	}
+
+	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		if (this.getFocused() instanceof WidgetList<?> list) {
 			AbstractWidget focusedWidget = list.getFocusedWidget();
@@ -101,6 +108,17 @@ public abstract class LinkedPageScreen extends Screen {
 		}
 		return super.mouseReleased(mouseX, mouseY, button);
 	}
+
+	@Override
+	public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+		for (int i = this.children().size() - 1; i >= 0; --i) {
+			GuiEventListener child = this.children().get(i);
+			if (child.isMouseOver(mouseX, mouseY) && child.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
+				return true;
+			}
+		}
+		return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+	}
 	
 	@Override
 	public void onClose() {
@@ -124,6 +142,9 @@ public abstract class LinkedPageScreen extends Screen {
 		}
 		
 		default void onDone() {
+		}
+
+		default void tick() {
 		}
 	}
 }

@@ -52,11 +52,14 @@ import raccoonman.reterraforged.world.worldgen.noise.module.Noise;
 import raccoonman.reterraforged.world.worldgen.util.PosUtil;
 
 public abstract class PresetEditorPage extends BisectedPage<PresetConfigScreen, AbstractWidget, AbstractWidget> {
+	private static final int PREVIEW_SCROLL_ZOOM_STEP = 3;
+	private static final int PREVIEW_SCROLL_REGENERATE_DELAY = 0;
 	private Slider zoom;
 	private CycleButton<RenderMode> renderMode;
 	private SeedButton seed;
 	private Preview preview;
 	protected PresetEntry preset;
+	private int pendingPreviewRegenerationTicks = -1;
 	
 	public PresetEditorPage(PresetConfigScreen screen, PresetEntry preset) {
 		super(screen);
@@ -65,7 +68,22 @@ public abstract class PresetEditorPage extends BisectedPage<PresetConfigScreen, 
 	}
 	
 	protected void regenerate() {
+		this.pendingPreviewRegenerationTicks = -1;
 		this.preview.regenerate();
+	}
+
+	@Override
+	public void tick() {
+		if (this.pendingPreviewRegenerationTicks < 0) {
+			return;
+		}
+		if (this.pendingPreviewRegenerationTicks-- <= 0) {
+			this.regenerate();
+		}
+	}
+
+	private void queuePreviewRegeneration() {
+		this.pendingPreviewRegenerationTicks = PREVIEW_SCROLL_REGENERATE_DELAY;
 	}
 	
 	@Override
@@ -355,6 +373,18 @@ public abstract class PresetEditorPage extends BisectedPage<PresetConfigScreen, 
 	    	if (!panned && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 	    		this.copyHoveredCoords(mouseX, mouseY);
 	    	}
+	    	return true;
+	    }
+
+	    @Override
+	    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+	    	if (!this.active || !this.visible || !this.isMouseOver(mouseX, mouseY) || scrollY == 0.0D) {
+	    		return false;
+	    	}
+	    	int direction = scrollY > 0.0D ? 1 : -1;
+	    	double nextZoom = PresetEditorPage.this.zoom.getLerpedValue() + direction * PREVIEW_SCROLL_ZOOM_STEP;
+	    	PresetEditorPage.this.zoom.setLerpedValue(nextZoom, false);
+	    	PresetEditorPage.this.queuePreviewRegeneration();
 	    	return true;
 	    }
 

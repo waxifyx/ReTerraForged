@@ -30,10 +30,22 @@ public class Slider extends AbstractSliderButton {
     public void setValue(double value) {
     	this.value = value;
     }
-    
-    public double getValue() {
-    	return this.value;
-    }
+
+	public void setLerpedValue(double value) {
+		this.setLerpedValue(value, true);
+	}
+
+	public void setLerpedValue(double value, boolean applyCallback) {
+		this.value = this.getSliderValue((float) value);
+		if (applyCallback) {
+			this.applyValue();
+		}
+		this.updateMessage();
+	}
+     
+     public double getValue() {
+     	return this.value;
+     }
     
 	public double getMin() {
 		return this.min;
