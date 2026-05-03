@@ -58,6 +58,7 @@ public class ErodeFeature extends Feature<Config> {
 			Levels levels = heightmap.levels();
 			Noise rand = Noises.white(heightmap.climate().randomSeed(), 1);
 			Noise desertErosionVariance = makeDesertErosionVariance(levels);
+			BlockState defaultBlock = generator instanceof NoiseBasedChunkGenerator noiseChunkGenerator ? noiseChunkGenerator.generatorSettings().value().defaultBlock() : Blocks.STONE.defaultBlockState();
 			BlockPos.MutableBlockPos pos = new MutableBlockPos();
 			Config config = placeContext.config();
 			for(int x = 0; x < 16; x++) {
@@ -68,9 +69,9 @@ public class ErodeFeature extends Feature<Config> {
 					Cell cell = tileChunk.getCell(x, z);
 					int scaledY = levels.scale(cell.height);
 					int surfaceY = chunk.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
-					Holder<Biome> biome = level.getBiome(pos.set(worldX, surfaceY, worldZ));
 					
 					pos.set(worldX, surfaceY, worldZ);
+					Holder<Biome> biome = level.getBiome(pos);
 					
 					if(biome.is(Biomes.DESERT)) {
 						erodeDesert(desertErosionVariance, levels, chunk, cell, pos, surfaceY);
@@ -78,7 +79,7 @@ public class ErodeFeature extends Feature<Config> {
 					}
 					
 			        if(surfaceY <= scaledY && surfaceY >= generator.getSeaLevel() - 1 && !biome.is(Biomes.WOODED_BADLANDS) && !biome.is(Biomes.BADLANDS)) {
-						erodeColumn(config, rand, generator, chunk, cell, pos, surfaceY);
+						erodeColumn(config, rand, chunk, cell, pos, surfaceY, defaultBlock);
 						//remove any foliage that may have generated above
 						pos.setY(surfaceY);
 						while(!level.getBlockState(pos.setY(pos.getY() + 1)).canSurvive(level, pos)) {
@@ -135,7 +136,7 @@ public class ErodeFeature extends Feature<Config> {
         }
 	}
 	
-	private static void erodeColumn(Config config, Noise rand, ChunkGenerator generator, ChunkAccess chunk, Cell cell, BlockPos.MutableBlockPos pos, int surfaceY) {
+	private static void erodeColumn(Config config, Noise rand, ChunkAccess chunk, Cell cell, BlockPos.MutableBlockPos pos, int surfaceY, BlockState defaultBlock) {
         if (cell.terrain.isRiver() || cell.terrain.isWetland()) {
             return;
         }
@@ -144,10 +145,10 @@ public class ErodeFeature extends Feature<Config> {
             return;
         }
 		
-        BlockState top = chunk.getBlockState(pos);
-        if(top.is(RTFBlockTags.ERODIBLE)) {
-            BlockState material = getMaterial(config, rand, cell, pos, top, generator instanceof NoiseBasedChunkGenerator noiseChunkGenerator ? noiseChunkGenerator.generatorSettings().value().defaultBlock() : Blocks.STONE.defaultBlockState());
-            if (material != top) {
+		BlockState top = chunk.getBlockState(pos);
+		if(top.is(RTFBlockTags.ERODIBLE)) {
+			BlockState material = getMaterial(config, rand, cell, pos, top, defaultBlock);
+			if (material != top) {
                 if (material.is(RTFBlockTags.ROCK)) {
                 	erodeRock(chunk, cell, pos, surfaceY);
                     return;

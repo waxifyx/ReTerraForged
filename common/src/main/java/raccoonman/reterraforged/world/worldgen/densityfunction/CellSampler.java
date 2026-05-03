@@ -65,11 +65,15 @@ public record CellSampler(Supplier<WorldLookup> deferredLookup, Field field) imp
 	public class CacheChunk implements MarkerFunction.Mapped {
 		@Nullable
 		private Tile.Chunk chunk;
+		private Heightmap heightmap;
+		private WorldLookup worldLookup;
 		private Cache2d cache2d;
 		private int chunkX, chunkZ;
 		
 		public CacheChunk(@Nullable Tile.Chunk chunk, @Nullable Cache2d cache2d, int chunkX, int chunkZ) {
 			this.chunk = chunk;
+			this.worldLookup = CellSampler.this.deferredLookup.get();
+			this.heightmap = this.worldLookup.getHeightmap();
 			this.cache2d = cache2d != null ? cache2d : new Cache2d();
 			this.chunkX = chunkX;
 			this.chunkZ = chunkZ;
@@ -79,13 +83,10 @@ public record CellSampler(Supplier<WorldLookup> deferredLookup, Field field) imp
 		public double compute(FunctionContext ctx) {
 			int blockX = ctx.blockX();
 			int blockZ = ctx.blockZ();
-			int chunkX = SectionPos.blockToSectionCoord(blockX);
-			int chunkZ = SectionPos.blockToSectionCoord(blockZ);
-			WorldLookup worldLookup = CellSampler.this.deferredLookup.get();
-			Cell cell = (this.chunk != null && this.chunkX == chunkX && this.chunkZ == chunkZ) ? 
+			Cell cell = (this.chunk != null && this.chunkX == SectionPos.blockToSectionCoord(blockX) && this.chunkZ == SectionPos.blockToSectionCoord(blockZ)) ? 
 				this.chunk.getCell(blockX, blockZ) :
-				this.cache2d.getAndUpdate(worldLookup, blockX, blockZ, false);
-			return CellSampler.this.field.read(cell, worldLookup.getHeightmap());
+				this.cache2d.getAndUpdate(this.worldLookup, blockX, blockZ, false);
+			return CellSampler.this.field.read(cell, this.heightmap);
 		}
 
 		@Override

@@ -12,6 +12,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.levelgen.RandomState;
+import raccoonman.reterraforged.concurrent.Resource;
 import raccoonman.reterraforged.world.worldgen.GeneratorContext;
 import raccoonman.reterraforged.world.worldgen.RTFRandomState;
 import raccoonman.reterraforged.world.worldgen.cell.Cell;
@@ -36,10 +37,12 @@ record CellTest(float cutoff, Set<Terrain> terrainTypeBlacklist) implements Stru
 			GeneratorContext generatorContext = rtfRandomState.generatorContext();
 			if(generatorContext != null) {
 				WorldLookup worldLookup = generatorContext.lookup;
-				Cell cell = new Cell();
-				worldLookup.applyCell(cell.reset(), pos.getX(), pos.getZ(), false);
-				if(cell.riverMask < this.cutoff) {//FIXME this breaks ancient city generation || this.terrainTypeBlacklist.contains(cell.terrain)) {
-					return false;
+				try(Resource<Cell> resource = Cell.getResource()) {
+					Cell cell = resource.get();
+					worldLookup.applyCell(cell.reset(), pos.getX(), pos.getZ(), false);
+					if(cell.riverMask < this.cutoff) {//FIXME this breaks ancient city generation || this.terrainTypeBlacklist.contains(cell.terrain)) {
+						return false;
+					}
 				}
 			}
 			return true;
