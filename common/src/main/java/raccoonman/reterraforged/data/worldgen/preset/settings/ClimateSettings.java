@@ -34,30 +34,40 @@ public class ClimateSettings {
     	return new ClimateSettings(this.temperature.copy(), this.moisture.copy(), this.biomeShape.copy(), this.biomeEdgeShape.copy());
     }
     
-    public static class RangeValue {
-    	public static final Codec<RangeValue> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-    		Codec.INT.fieldOf("seedOffset").forGetter((o) -> o.seedOffset),
-    		Codec.INT.fieldOf("scale").forGetter((o) -> o.scale),
-    		Codec.INT.fieldOf("falloff").forGetter((o) -> o.falloff),
-    		Codec.FLOAT.fieldOf("min").forGetter((o) -> o.min),
-    		Codec.FLOAT.fieldOf("max").forGetter((o) -> o.max),
-    		Codec.FLOAT.fieldOf("bias").forGetter((o) -> o.bias)
-    	).apply(instance, RangeValue::new));
-    	
+	    public static class RangeValue {
+	    	public static final Codec<RangeValue> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+	    		Codec.INT.fieldOf("seedOffset").forGetter((o) -> o.seedOffset),
+	    		Codec.INT.fieldOf("scale").forGetter((o) -> o.scale),
+	    		Codec.INT.fieldOf("falloff").forGetter((o) -> o.falloff),
+	    		Codec.FLOAT.fieldOf("min").forGetter((o) -> o.min),
+	    		Codec.FLOAT.fieldOf("max").forGetter((o) -> o.max),
+	    		Codec.FLOAT.fieldOf("bias").forGetter((o) -> o.bias),
+	    		Codec.FLOAT.optionalFieldOf("weightTarget", 0.5F).forGetter((o) -> o.weightTarget),
+	    		Codec.FLOAT.optionalFieldOf("weightStrength", 0.0F).forGetter((o) -> o.weightStrength)
+	    	).apply(instance, RangeValue::new));
+	    	
         public int seedOffset;
         public int scale;
         public int falloff;
         public float min;
         public float max;
         public float bias;
+	        public float weightTarget;
+	        public float weightStrength;
         
         public RangeValue(int seedOffset, int scale, int falloff, float min, float max, float bias) {
+	        	this(seedOffset, scale, falloff, min, max, bias, 0.5F, 0.0F);
+	        }
+	        
+	        public RangeValue(int seedOffset, int scale, int falloff, float min, float max, float bias, float weightTarget, float weightStrength) {
             this.seedOffset = seedOffset;
             this.min = min;
             this.max = max;
             this.bias = bias;
             this.scale = scale;
             this.falloff = falloff;
+	            this.weightTarget = weightTarget;
+	            this.weightStrength = weightStrength;
         }
         
         public float getMin() {
@@ -71,18 +81,32 @@ public class ClimateSettings {
         public float getBias() {
             return NoiseUtil.clamp(this.bias, -1.0F, 1.0F);
         }
+
+	        public float getWeightTarget() {
+	        	return NoiseUtil.clamp(this.weightTarget, this.getMin(), this.getMax());
+	        }
+	        
+	        public float getWeightStrength() {
+	        	return NoiseUtil.clamp(this.weightStrength, 0.0F, 1.0F);
+	        }
         
         public Noise apply(Noise module) {
             float min = this.getMin();
             float max = this.getMax();
             float bias = this.getBias() / 2.0F;
+	            float weightTarget = this.getWeightTarget();
+	            float weightStrength = this.getWeightStrength();
             module = Noises.add(module, bias);
             module = Noises.clamp(module, min, max);
+	            if (weightStrength > 0.0F) {
+	            	module = Noises.add(Noises.mul(module, 1.0F - weightStrength), weightTarget * weightStrength);
+	            	module = Noises.clamp(module, min, max);
+	            }
             return module;
         }
         
         public RangeValue copy() {
-        	return new RangeValue(this.seedOffset, this.scale, this.falloff, this.min, this.max, this.bias);
+	        	return new RangeValue(this.seedOffset, this.scale, this.falloff, this.min, this.max, this.bias, this.weightTarget, this.weightStrength);
         }
     }
     

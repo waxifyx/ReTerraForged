@@ -101,11 +101,15 @@ public final class RTFTranslationKeys {
 	public static final String GUI_SLIDER_TEMPERATURE_MIN = resolve("gui.slider.temperatureMin");
 	public static final String GUI_SLIDER_TEMPERATURE_MAX = resolve("gui.slider.temperatureMax");
 	public static final String GUI_SLIDER_TEMPERATURE_BIAS = resolve("gui.slider.temperatureBias");
+	public static final String GUI_SLIDER_TEMPERATURE_WEIGHT_TARGET = resolve("gui.slider.temperatureWeightTarget");
+	public static final String GUI_SLIDER_TEMPERATURE_WEIGHT_STRENGTH = resolve("gui.slider.temperatureWeightStrength");
 	public static final String GUI_SLIDER_MOISTURE_SCALE = resolve("gui.slider.moistureScale");
 	public static final String GUI_SLIDER_MOISTURE_FALLOFF = resolve("gui.slider.moistureFalloff");
 	public static final String GUI_SLIDER_MOISTURE_MIN = resolve("gui.slider.moistureMin");
 	public static final String GUI_SLIDER_MOISTURE_MAX = resolve("gui.slider.moistureMax");
 	public static final String GUI_SLIDER_MOISTURE_BIAS = resolve("gui.slider.moistureBias");
+	public static final String GUI_SLIDER_MOISTURE_WEIGHT_TARGET = resolve("gui.slider.moistureWeightTarget");
+	public static final String GUI_SLIDER_MOISTURE_WEIGHT_STRENGTH = resolve("gui.slider.moistureWeightStrength");
 	public static final String GUI_SLIDER_BIOME_SIZE = resolve("gui.slider.biomeSize");
 	public static final String GUI_SLIDER_MACRO_NOISE_SIZE = resolve("gui.slider.macroNoiseSize");
 	public static final String GUI_SLIDER_BIOME_WARP_SCALE = resolve("gui.slider.biomeWarpScale");

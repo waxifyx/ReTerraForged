@@ -19,6 +19,8 @@ class ClimateSettingsPage extends PresetEditorPage {
 	private Slider temperatureMin;
 	private Slider temperatureMax;
 	private Slider temperatureBias;
+	private Slider temperatureWeightTarget;
+	private Slider temperatureWeightStrength;
 	
 	private ValueButton<Integer>  moistureSeedOffset;
 	private Slider moistureScale;
@@ -26,6 +28,8 @@ class ClimateSettingsPage extends PresetEditorPage {
 	private Slider moistureMin;
 	private Slider moistureMax;
 	private Slider moistureBias;
+	private Slider moistureWeightTarget;
+	private Slider moistureWeightStrength;
 	
 	private Slider biomeSize;
 	private Slider macroNoiseSize;
@@ -85,6 +89,16 @@ class ClimateSettingsPage extends PresetEditorPage {
 			this.regenerate();
 			return value;
 		});
+		this.temperatureWeightTarget = PresetWidgets.createFloatSlider(temperature.weightTarget, 0.0F, 1.0F, RTFTranslationKeys.GUI_SLIDER_TEMPERATURE_WEIGHT_TARGET, (slider, value) -> {
+			temperature.weightTarget = (float) slider.scaleValue(value);
+			this.regenerate();
+			return value;
+		});
+		this.temperatureWeightStrength = PresetWidgets.createFloatSlider(temperature.weightStrength, 0.0F, 1.0F, RTFTranslationKeys.GUI_SLIDER_TEMPERATURE_WEIGHT_STRENGTH, (slider, value) -> {
+			temperature.weightStrength = (float) slider.scaleValue(value);
+			this.regenerate();
+			return value;
+		});
 
 		ClimateSettings.RangeValue moisture = climate.moisture;
 		this.moistureSeedOffset = PresetWidgets.createRandomButton(RTFTranslationKeys.GUI_BUTTON_CLIMATE_SEED_OFFSET, moisture.seedOffset, (value) -> {
@@ -113,6 +127,16 @@ class ClimateSettingsPage extends PresetEditorPage {
 		});
 		this.moistureBias = PresetWidgets.createFloatSlider(moisture.bias, -1.0F, 1.0F, RTFTranslationKeys.GUI_SLIDER_MOISTURE_BIAS, (slider, value) -> {
 			moisture.bias = (float) slider.scaleValue(value);
+			this.regenerate();
+			return value;
+		});
+		this.moistureWeightTarget = PresetWidgets.createFloatSlider(moisture.weightTarget, 0.0F, 1.0F, RTFTranslationKeys.GUI_SLIDER_MOISTURE_WEIGHT_TARGET, (slider, value) -> {
+			moisture.weightTarget = (float) slider.scaleValue(value);
+			this.regenerate();
+			return value;
+		});
+		this.moistureWeightStrength = PresetWidgets.createFloatSlider(moisture.weightStrength, 0.0F, 1.0F, RTFTranslationKeys.GUI_SLIDER_MOISTURE_WEIGHT_STRENGTH, (slider, value) -> {
+			moisture.weightStrength = (float) slider.scaleValue(value);
 			this.regenerate();
 			return value;
 		});
@@ -177,6 +201,8 @@ class ClimateSettingsPage extends PresetEditorPage {
 		this.left.addWidget(this.temperatureMin);
 		this.left.addWidget(this.temperatureMax);
 		this.left.addWidget(this.temperatureBias);
+		this.left.addWidget(this.temperatureWeightTarget);
+		this.left.addWidget(this.temperatureWeightStrength);
 
 		this.left.addWidget(PresetWidgets.createLabel(RTFTranslationKeys.GUI_LABEL_MOISTURE));
 		this.left.addWidget(this.moistureSeedOffset);
@@ -185,6 +211,8 @@ class ClimateSettingsPage extends PresetEditorPage {
 		this.left.addWidget(this.moistureMin);
 		this.left.addWidget(this.moistureMax);
 		this.left.addWidget(this.moistureBias);
+		this.left.addWidget(this.moistureWeightTarget);
+		this.left.addWidget(this.moistureWeightStrength);
 		
 		this.left.addWidget(PresetWidgets.createLabel(RTFTranslationKeys.GUI_LABEL_BIOME_SHAPE));
 		this.left.addWidget(this.biomeSize);
